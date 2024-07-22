@@ -1,0 +1,54 @@
+name: Deploy API to AWS Elastic Beanstalk Environment
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: eu-west-1
+          aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"        
+
+      - name: Restore dependencies
+        run: |
+          cd backend
+          pip3 install -r requirements.txt
+
+      - name: Zip the build
+        run: |
+           cd backend
+           zip -r build.zip .
+
+      - name: List current directory
+        run: ls -la
+        
+      - name: Upload artifact to S3
+        run: |
+          cd backend
+          aws s3 cp build.zip s3://api-8479-releases/application-${{ github.run_id }}.zip   
+        
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-region: eu-west-1
+          aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"      
+      
+      - name: Deploy to Elastic Beanstalk      
+        run: |
+          aws elasticbeanstalk create-application-version --application-name FlatFileAPI --version-label ${{ github.run_id }} --source-bundle S3Bucket="api-8479-releases",S3Key="application-${{ github.run_id }}.zip"
+          aws elasticbeanstalk update-environment --application-name FlatFileAPI --environment-name FlatFileApiEnv --version-label ${{ github.run_id }}
