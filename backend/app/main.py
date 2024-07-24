@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from app.routers import transactions
+from app.dependencies import verify_token
 
-app = FastAPI()
+app = FastAPI(dependencies=[Depends(verify_token)])
 app.include_router(transactions.router)
 
 
