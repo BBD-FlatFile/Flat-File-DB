@@ -1,4 +1,6 @@
 fastapi
 pandas
+pyjwt
 boto3
 python-dotenv
+
