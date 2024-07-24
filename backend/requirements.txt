@@ -1,2 +1,5 @@
 fastapi
 pandas
+boto3
+python-multipart
+uvicorn
