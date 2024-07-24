@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional
+from app.dependencies import verify_token
 from app.services.csv_handling import (
     get_all_transactions,
     get_by_id,
@@ -14,7 +15,8 @@ from app.services.csv_handling import (
 
 router = APIRouter(
     prefix="/transactions",
-    tags=["transactions"]
+    tags=["transactions"],
+    dependencies=[Depends(verify_token)],
 )
 
 
