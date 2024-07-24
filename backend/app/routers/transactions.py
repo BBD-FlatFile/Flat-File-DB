@@ -9,6 +9,7 @@ from app.services.csv_handling import (
     add_transaction,
     update_transaction,
     delete_transaction,
+    reconcile_transactions
 )
 from app.services.S3_handling import upload_file_to_s3
 
@@ -60,17 +61,17 @@ def sort_transactions_route(file_name: str, sort_by: str, order: str):
 
 
 @router.post("/")
-def add_transaction_route(file_name: str, transaction_id: int, date: str, amount: float, description: str):
+def add_transaction_route(file_name: str, transaction_id: int, bank: str, date: str, amount: float, description: str):
     try:
-        return add_transaction(file_name, transaction_id, date, amount, description)
+        return add_transaction(file_name, transaction_id, bank, date, amount, description)
     except HTTPException as e:
         raise e
 
 
 @router.put("/")
-def update_transaction_route(file_name: str, transaction_id: int, date: Optional[str] = None, amount: Optional[float] = None, description: Optional[str] = None):
+def update_transaction_route(file_name: str, transaction_id: int, bank: Optional[str] = None, date: Optional[str] = None, amount: Optional[float] = None, description: Optional[str] = None):
     try:
-        return update_transaction(file_name, transaction_id, date, amount, description)
+        return update_transaction(file_name, transaction_id, bank, date, amount, description)
     except HTTPException as e:
         raise e
 
@@ -93,3 +94,10 @@ async def upload_to_s3(file: UploadFile = File(...)):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+
+@router.get("/reconcile")
+def reconcile_transactions_route(file_1: str, file_2: str):
+    try:
+        return reconcile_transactions(file_1, file_2)
+    except HTTPException as e:
+        raise e
