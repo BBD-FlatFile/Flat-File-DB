@@ -21,10 +21,11 @@ s3 = boto3.client(
     region_name=aws_region
 )
 
+bucket_name = "flat-file-state-bucket"
 
 def list_bucket_contents():
     try:
-        response = s3.list_objects_v2(Bucket="flat-file-state-bucket")
+        response = s3.list_objects_v2(Bucket=bucket_name)
         if 'Contents' in response:
             files = [obj['Key'] for obj in response['Contents'] if obj['Key'].endswith('.csv')]
         else:
@@ -37,7 +38,7 @@ def list_bucket_contents():
 
 def read_csv(file_key):
     try:
-        response = s3.get_object(Bucket="flat-file-state-bucket", Key=file_key)
+        response = s3.get_object(Bucket=bucket_name, Key=file_key)
         content = response['Body'].read()
         return content.decode("utf-8")
     except Exception as e:
@@ -47,7 +48,7 @@ def read_csv(file_key):
 def update_csv(file_key, new_content):
     try:
         content = io.StringIO(new_content)
-        s3.put_object(Bucket="flat-file-state-bucket", Key=file_key, Body=content.getvalue())
+        s3.put_object(Bucket=bucket_name, Key=file_key, Body=content.getvalue())
         return True
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -55,9 +56,16 @@ def update_csv(file_key, new_content):
 
 def delete_csv(file_key):
     try:
-        s3.delete_object(Bucket="flat-file-state-bucket", Key=file_key)
+        s3.delete_object(Bucket=bucket_name, Key=file_key)
         return {"success": f"file {file_key} successfully deleted"}
     except s3.exceptions.NoSuchKey:
         raise HTTPException(status_code=404, detail="File not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail="INTERNAL SERVER ERROR")
+
+def upload_csv(file_name, file_content):
+    try:
+        s3.put_object(Bucket=bucket_name, Key=file_name, Body=file_content)
+        return {"success": f"file {file_name} successfully uploaded"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {e}")

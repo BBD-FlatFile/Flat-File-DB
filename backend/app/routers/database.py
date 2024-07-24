@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from app.services.s3 import (
     list_bucket_contents,
     delete_csv,
+    upload_csv
 )
 
 router = APIRouter(
@@ -24,3 +25,15 @@ def delete_csv_router(file_name: str):
         return delete_csv(file_name)
     except HTTPException as e:
         raise e
+
+
+@router.post("/upload")
+def upload_file_router(file: UploadFile = File(...)):
+    try:
+        file_content = file.file.read()
+        file_name = file.filename
+        return upload_csv(file_name, file_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {e}")
+    finally:
+        file.file.close()

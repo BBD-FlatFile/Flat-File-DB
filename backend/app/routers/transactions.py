@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, HTTPException
 from typing import Optional
 from app.services.csv_handling import (
     get_all_transactions,
@@ -11,7 +11,7 @@ from app.services.csv_handling import (
     delete_transaction,
     reconcile_transactions
 )
-from app.services.S3_handling import upload_file_to_s3
+
 
 
 router = APIRouter(
@@ -84,16 +84,7 @@ def delete_transaction_route(file_name: str, transaction_id: int):
         raise e
 
 
-@router.post("/upload_to_s3")
-async def upload_to_s3(file: UploadFile = File(...)):
-    bucket_name = "flat-file-state-bucket"
-    try:
-        response = upload_file_to_s3(file, bucket_name)
-        return response
-    except HTTPException as e:
-        raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {str(e)}")
+
 
 @router.get("/reconcile")
 def reconcile_transactions_route(file_1: str, file_2: str):
