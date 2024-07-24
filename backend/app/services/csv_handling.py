@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import json
 import io
 from datetime import datetime
 from fastapi import HTTPException
@@ -235,23 +236,18 @@ def reconcile_transactions(file1, file2):
     csv2 = read_csv(file2)
     df2 = pd.read_csv(io.StringIO(csv2))
 
-    df1['key'] = df1['bank'] + df1['date'] + df1['amount'].astype(str) + df1['description']
-    df2['key'] = df2['bank'] + df2['date'] + df2['amount'].astype(str) + df2['description']
+    matches = pd.merge(df1, df2, on=['transaction_id', 'bank', 'date', 'amount', 'description'])
 
-    merged = pd.merge(df1, df2, on='key', how='outer', indicator=True, suffixes=('_file1', '_file2'))
+    file1_only = df1[~df1.transaction_id.isin(matches.transaction_id)]
 
-    matches = merged[merged['_merge'] == 'both'].drop(columns=['_merge'])
-    only_in_file1 = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
-    only_in_file2 = merged[merged['_merge'] == 'right_only'].drop(columns=['_merge'])
-
-    matches = matches.replace({np.nan: None, np.inf: None, -np.inf: None})
-    only_in_file1 = only_in_file1.replace({np.nan: None, np.inf: None, -np.inf: None})
-    only_in_file2 = only_in_file2.replace({np.nan: None, np.inf: None, -np.inf: None})
+    file2_only = df2[~df2.transaction_id.isin(matches.transaction_id)]
 
     result = {
-        "matches": matches.to_dict(orient='records'),
-        "only_in_file1": only_in_file1.to_dict(orient='records'),
-        "only_in_file2": only_in_file2.to_dict(orient='records')
+        'matches': json.loads(matches.to_json(orient='records')),
+        'file1_only': json.loads(file1_only.to_json(orient='records')),
+        'file2_only': json.loads(file2_only.to_json(orient='records'))
     }
 
     return result
+
+
