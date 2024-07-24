@@ -1,6 +1,8 @@
 import io
 import json
 import os
+from datetime import datetime
+import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 from fastapi import HTTPException
 import boto3
@@ -63,7 +65,53 @@ def delete_csv(file_key):
     except Exception as e:
         raise HTTPException(status_code=500, detail="INTERNAL SERVER ERROR")
 
+
 def upload_csv(file_name, file_content):
+    if not file_name.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="File must be a csv")
+
+    try:
+        df = pd.read_csv(io.StringIO(file_content.decode("utf-8")))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read CSV file: {e}")
+
+    expected_headers = ["transaction_id", "bank", "date", "amount", "description"]
+    if list(df.columns) != expected_headers:
+        raise HTTPException(status_code=400, detail=f"CSV headers must be: {', '.join(expected_headers)}")
+
+    unique_ids = set()
+    for index, row in df.iterrows():
+        try:
+            transaction_id = int(row["transaction_id"])
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Transaction ID must be an integer at row {index + 1}")
+
+        if transaction_id in unique_ids:
+            raise HTTPException(status_code=400, detail=f"Duplicate Transaction ID {transaction_id} at row {index + 1}")
+
+        unique_ids.add(transaction_id)
+
+        bank = row["bank"]
+        if not isinstance(bank, str) or len(bank) >= 50:
+            raise HTTPException(status_code=400,
+                                detail=f"Bank name must be a string less than 50 characters at row {index + 1}")
+
+        date = row["date"]
+        try:
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Date must be in the format yyyy-mm-dd at row {index + 1}")
+
+        try:
+            amount = round(float(row["amount"]), 2)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Amount must be a float at row {index + 1}")
+
+        description = row["description"]
+        if not isinstance(description, str) or len(description) >= 50:
+            raise HTTPException(status_code=400,
+                                detail=f"Description must be a string less than 50 characters at row {index + 1}")
+
     try:
         s3.put_object(Bucket=bucket_name, Key=file_name, Body=file_content)
         return {"success": f"file {file_name} successfully uploaded"}

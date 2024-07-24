@@ -29,13 +29,13 @@ def delete_csv_router(file_name: str):
         raise e
 
 
-@router.post("/upload")
+@router.post("/")
 def upload_file_router(file: UploadFile = File(...)):
     try:
         file_content = file.file.read()
         file_name = file.filename
         return upload_csv(file_name, file_content)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to upload file: {e}")
+    except HTTPException as e:
+        raise e
     finally:
         file.file.close()
