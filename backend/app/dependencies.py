@@ -1,11 +1,15 @@
-from fastapi import Header, HTTPException
+from fastapi import Header, HTTPException, Depends
+from fastapi.security import OAuth2PasswordBearer
 from typing import Annotated
 import jwt
 
 
-async def verify_token(jwt_token: Annotated[str, Header()]):
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+async def verify_token(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
-        payload = jwt.decode(jwt_token, options={'verify_signature': False})
+        payload = jwt.decode(token, options={'verify_signature': False})
         print(payload)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")

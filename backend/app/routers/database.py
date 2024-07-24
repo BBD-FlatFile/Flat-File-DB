@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from app.dependencies import verify_token
 from app.services.s3 import (
     list_bucket_contents,
     delete_csv,
@@ -6,7 +7,8 @@ from app.services.s3 import (
 
 router = APIRouter(
     prefix="/database",
-    tags=["database"]
+    tags=["database"],
+    dependencies=[Depends(verify_token)],
 )
 
 
