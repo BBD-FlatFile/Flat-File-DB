@@ -59,9 +59,9 @@ def sort_transactions_route(file_name: str, sort_by: str, order: str):
 
 
 @router.post("/")
-def add_transaction_route(file_name: str, transaction_id: int, bank: str, date: str, amount: float, description: str):
+def add_transaction_route(file_name: str, bank: str, date: str, amount: float, description: str, transaction_id: Optional[int] = None):
     try:
-        return add_transaction(file_name, transaction_id, bank, date, amount, description)
+        return add_transaction(file_name, bank, date, amount, description, transaction_id)
     except HTTPException as e:
         raise e
 
