@@ -4,6 +4,7 @@ from app.dependencies import verify_token
 
 app = FastAPI(dependencies=[Depends(verify_token)])
 app.include_router(transactions.router)
+app.include_router(database.router)
 
 
 @app.get("/")
