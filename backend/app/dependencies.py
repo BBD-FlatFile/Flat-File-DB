@@ -10,7 +10,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 async def verify_token(token: Annotated[str, Depends(oauth2_scheme)]):
     try:
         payload = jwt.decode(token, options={'verify_signature': False})
-        print(payload)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:

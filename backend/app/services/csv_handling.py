@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+import json
 import io
 from datetime import datetime
 from fastapi import HTTPException
@@ -90,17 +92,18 @@ def sort_transactions(filepath, sort_by, order):
     return {"transactions": transactions}
 
 
-def add_transaction(filepath, transaction_id, bank, date, amount, description):
-    if not all([transaction_id, bank, date, amount, description]):
+def add_transaction(filepath, bank, date, amount, description, transaction_id=None):
+    if not all([bank, date, amount, description]):
         raise HTTPException(status_code=400, detail="All fields must be provided")
 
     if len(bank) >= 50:
         raise HTTPException(status_code=400, detail="bank name must be less than 50 characters")
 
-    try:
-        transaction_id = int(transaction_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Transaction ID must be an integer")
+    if transaction_id is not None:
+        try:
+            transaction_id = int(transaction_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Transaction ID must be an integer")
 
     try:
         date = datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
@@ -118,8 +121,14 @@ def add_transaction(filepath, transaction_id, bank, date, amount, description):
     csv_content = read_csv(filepath)
     df = pd.read_csv(io.StringIO(csv_content))
 
-    if transaction_id in df["transaction_id"].values:
-        raise HTTPException(status_code=409, detail=f"Transaction ID {transaction_id} already exists")
+    if transaction_id is None:
+        if df.empty:
+            transaction_id = 1
+        else:
+            transaction_id = df["transaction_id"].max() + 1
+    else:
+        if transaction_id in df["transaction_id"].values:
+            raise HTTPException(status_code=409, detail=f"Transaction ID {transaction_id} already exists")
 
     new_transaction = {
         "transaction_id": transaction_id,
@@ -222,30 +231,23 @@ def delete_transaction(filepath, transaction_id):
 
 
 def reconcile_transactions(file1, file2):
-    df1 = pd.read_csv(file1)
-    df2 = pd.read_csv(file2)
+    csv1 = read_csv(file1)
+    df1 = pd.read_csv(io.StringIO(csv1))
+    csv2 = read_csv(file2)
+    df2 = pd.read_csv(io.StringIO(csv2))
 
-    df1['key'] = df1['bank'] + df1['date'] + df1['amount'].astype(str) + df1['description']
-    df2['key'] = df2['bank'] + df2['date'] + df2['amount'].astype(str) + df2['description']
+    matches = pd.merge(df1, df2, on=['transaction_id', 'bank', 'date', 'amount', 'description'])
 
-    merged = pd.merge(df1, df2, on='key', how='outer', indicator=True, suffixes=('_file1', '_file2'))
+    file1_only = df1[~df1.transaction_id.isin(matches.transaction_id)]
 
-    matches = merged[merged['_merge'] == 'both'].drop(columns=['_merge', 'key'])
-
-    matches = matches[['transaction_id_file1', 'bank_file1', 'date_file1', 'amount_file1', 'description_file1']]
-
-    only_in_file1 = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge', 'key'])
-
-    only_in_file2 = merged[merged['_merge'] == 'right_only'].drop(columns=['_merge', 'key'])
+    file2_only = df2[~df2.transaction_id.isin(matches.transaction_id)]
 
     result = {
-        "matches": matches.to_dict(orient='records'),
-        "only_in_file1": only_in_file1.to_dict(orient='records'),
-        "only_in_file2": only_in_file2.to_dict(orient='records')
+        'matches': json.loads(matches.to_json(orient='records')),
+        'file1_only': json.loads(file1_only.to_json(orient='records')),
+        'file2_only': json.loads(file2_only.to_json(orient='records'))
     }
 
     return result
 
 
-# result = reconcile_transactions("../../fnb.csv", "../../absa.csv")
-# print(result)
