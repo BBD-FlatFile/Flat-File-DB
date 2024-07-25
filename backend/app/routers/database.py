@@ -1,9 +1,13 @@
+import io
+
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse
 from app.dependencies import verify_token
 from app.services.s3 import (
     list_bucket_contents,
     delete_csv,
-    upload_csv
+    upload_csv,
+    read_csv
 )
 
 router = APIRouter(
@@ -39,3 +43,16 @@ def upload_file_router(file: UploadFile = File(...)):
         raise e
     finally:
         file.file.close()
+
+
+@router.get("/download")
+def download_csv_router(file_name: str):
+    try:
+        csv_content = read_csv(file_name)
+        csv_stream = io.StringIO(csv_content)
+
+        response = StreamingResponse(csv_stream, media_type="text/csv")
+        response.headers["Content-Dispostion"] = f"attachment; filename={file_name}"
+        return response
+    except HTTPException as e:
+        raise e

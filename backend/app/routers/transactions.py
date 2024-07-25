@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from typing import Optional
+import io
 from app.dependencies import verify_token
 from app.services.csv_handling import (
     get_all_transactions,
@@ -10,7 +12,8 @@ from app.services.csv_handling import (
     add_transaction,
     update_transaction,
     delete_transaction,
-    reconcile_transactions
+    reconcile_transactions,
+    reconcile_export
 )
 
 router = APIRouter(
@@ -88,5 +91,18 @@ def delete_transaction_route(file_name: str, transaction_id: int):
 def reconcile_transactions_route(file_1: str, file_2: str):
     try:
         return reconcile_transactions(file_1, file_2)
+    except HTTPException as e:
+        raise e
+
+
+@router.get("/reconcile-csv")
+def reconcile_transactions_route(file_1: str, file_2: str):
+    try:
+        csv_content = reconcile_export(file_1, file_2)
+        csv_stream = io.StringIO(csv_content)
+
+        response = StreamingResponse(csv_stream, media_type="text/csv")
+        response.headers["Content-Dispostion"] = "attachment; filename=reconcile.csv"
+        return response
     except HTTPException as e:
         raise e

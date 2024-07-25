@@ -242,7 +242,13 @@ def reconcile_transactions(file1, file2):
 
     file2_only = df2[~df2.transaction_id.isin(matches.transaction_id)]
 
+    if file1_only.empty and file2_only.empty:
+        status = "files match"
+    else:
+        status = "files do not match"
+
     result = {
+        'status': status,
         'matches': json.loads(matches.to_json(orient='records')),
         'file1_only': json.loads(file1_only.to_json(orient='records')),
         'file2_only': json.loads(file2_only.to_json(orient='records'))
@@ -251,3 +257,20 @@ def reconcile_transactions(file1, file2):
     return result
 
 
+def reconcile_export(file1, file2):
+    result = reconcile_transactions(file1, file2)
+
+    matches = pd.DataFrame(result['matches'])
+    matches['match'] = 'match'
+
+    file1_only = pd.DataFrame(result['file1_only'])
+    file1_only['match'] = file1
+
+    file2_only = pd.DataFrame(result['file2_only'])
+    file2_only['match'] = file2
+
+    combined_df = pd.concat([matches, file1_only, file2_only])
+
+    csv_result = combined_df.to_csv(index=False)
+
+    return csv_result
